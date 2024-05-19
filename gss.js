@@ -5,8 +5,9 @@ const fonts = require('./lib/font.js');
 const menufont = require('./lib/menufont.js');
 const DB = require('./lib/scraper')
 const uploadImage = require('./lib/uploadImage.js');
-const { rentfromxeon, conns } = require('./RentBot')
+const { gssrentbot, conns } = require('./RentBot')
 const languages = require('./lib/language');
+const got = require('got');
 const more = String.fromCharCode(8206)
 const readmore = more.repeat(4001)
 const availableStyles = Object.keys(fonts);
@@ -56,7 +57,7 @@ const acr = new acrcloud({
     access_key: 'c33c767d683f78bd17d4bd4991955d81',
     access_secret: 'bvgaIAEtADBTbLwiPGYlxupWqkNGIjT7J9Ag2vIu'
 });
-const apiKey = "AIzaSyANBCTOmcHkrA15S5e2lyNMbZzmiJRn1iA";
+const apiKey = "AIzaSyAFKLsFovEAwKkjScCZMdJwn4V6Ns2VJzA";
 const genAI = new GoogleGenerativeAI(apiKey);
 const tempMailAddresses = {};
 const defaultLang = 'en'
@@ -67,11 +68,10 @@ let nttoxic = JSON.parse(fs.readFileSync('./database/antitoxic.json'))
 let premium = JSON.parse(fs.readFileSync('./src/data/premium.json'))
 
 // Initialize default values
-let AUTO_READ = false;
-let ALWAYS_ONLINE = false;
-let TYPING_ENABLED = false;
-let PUBLIC_MODE = false; // added
-let ANTICALL_MODE = false; // added
+let autoread = false;
+let available = false;
+let autoTyping = false;
+let autoRecord = false;
 
 const mongoDBUrl = process.env.MONGO_DB || 'mongodb+srv://mohsin:mohsin@cluster0.iauaztt.mongodb.net/?retryWrites=true&w=majority';
 
@@ -99,12 +99,11 @@ module.exports = gss = async (gss, m, chatUpdate, store) => {
     try {
         var body = (m.mtype === 'conversation') ? m.message.conversation : (m.mtype == 'imageMessage') ? m.message.imageMessage.caption : (m.mtype == 'videoMessage') ? m.message.videoMessage.caption : (m.mtype == 'extendedTextMessage') ? m.message.extendedTextMessage.text : (m.mtype == 'buttonsResponseMessage') ? m.message.buttonsResponseMessage.selectedButtonId : (m.mtype == 'listResponseMessage') ? m.message.listResponseMessage.singleSelectReply.selectedRowId : (m.mtype == 'templateButtonReplyMessage') ? m.message.templateButtonReplyMessage.selectedId : (m.mtype === 'messageContextInfo') ? (m.message.buttonsResponseMessage?.selectedButtonId || m.message.listResponseMessage?.singleSelectReply.selectedRowId || m.text) : ''
         var budy = (typeof m.text == 'string' ? m.text : '')
-        var prefix = prefa ? /^[°•π÷×¶∆£¢€¥®™+✓_=|~!?@#$%^&.©^]/gi.test(body) ? body.match(/^[°•π÷×¶∆£¢€¥®™+✓_=|~!?@#$%^&.©^]/gi)[0] : "" : prefa ?? global.prefix
-        global.prefix = prefix
-        const isCmd = body.startsWith(prefix)
-        const command = body.replace(prefix, '').trim().split(/ +/).shift().toLowerCase()
-        var args = body.trim().split(/ +/).slice(1)
-        args = args.concat(['','','','','',''])
+    const prefix = /^[\\/!#.]/gi.test(body) ? body.match(/^[\\/!#.]/gi) : "/";
+    const isCmd = body.startsWith(prefix)
+    const notCmd = body.startsWith('')
+    const command = isCmd ? body.slice(1).trim().split(' ')[0].toLowerCase() : ''
+    const args = body.trim().split(/ +/).slice(1)
 
 
 
@@ -203,6 +202,8 @@ async function sendTypingEffect(gss, m, message, typingSpeed) {
 
 
 
+
+
 function formatBytes(bytes) {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   if (bytes === 0) return '0 Byte';
@@ -221,12 +222,6 @@ function formatUploadDate(uploadDate) {
   return formattedDate.toLocaleDateString(undefined, options);
 }
 
-
-async function generateProfilePicture(media) {
-    return {
-        img: 'placeholder_image_data'
-    };
-}
 	
 	
 async function getIPInfo() {
@@ -286,7 +281,7 @@ async function mainSys() {
          } 
      })
 
-
+ 
 
 let cpuPer 
      let p1 = cpux.usage().then(cpuPercentage => { 
@@ -424,17 +419,6 @@ try {
 
 
 
-const autoBlockEnabledValue = process.env.AUTO_BLOCK_ENABLED || 'false';
-global.autoBlockEnabled = autoBlockEnabledValue === 'true';
-
-const typemenu = process.env.TYPEMENU || global.typemenu;
-const onlygroup = process.env.ONLYGROUP || global.onlygroup;
-const onlypc = process.env.ONLYPC || global.onlypc;
-
-let TYPING_ENABLED = process.env.AUTO_TYPING === 'true';
-let AUTO_READ_ENABLED = process.env.AUTO_READ === 'true';
-let ALWAYS_ONLINE = process.env.ALWAYS_ONLINE === 'true';
-
 	try {
             let isNumber = x => typeof x === 'number' && !isNaN(x)
             let limitUser = isPremium ? global.limitawal.premium : global.limitawal.free
@@ -451,21 +435,39 @@ let ALWAYS_ONLINE = process.env.ALWAYS_ONLINE === 'true';
             }
     
 
-
+/*
 let chats = db.data.chats[m.chat]
             if (typeof chats !== 'object') db.data.chats[m.chat] = {}
             if (chats) {
-              if (!("antiDelete" in chats)) chats.antiDelete = false
+              if (!('antiviewonce' in chats)) chats.antiviewonce = false
+              if (!('antibot' in chats)) chats.antibot = true
                 if (!('mute' in chats)) chats.mute = false
                 if (!('antilink' in chats)) chats.antilink = false
-                 if (!('antibot' in chats)) chats.antibot = false
             } else global.db.data.chats[m.chat] = {
-                antiDelete: false,
+                antiviewonce: true,
+                antibot: true,
                 mute: false,
                 antilink: false,
-                antibot: false,
             }
 
+*/
+
+
+let chats = db.data.chats[m.chat]
+if (typeof chats !== 'object') db.data.chats[m.chat] = {}
+if (chats) {
+    if (!('antiviewonce' in chats)) chats.antiviewonce = false
+    if (!('antibot' in chats)) chats.antibot = true
+    if (!('mute' in chats)) chats.mute = false
+    if (!('antilink' in chats)) chats.antilink = false
+    if (!('antidelete' in chats)) chats.antidelete = true // Add 'antidelete' if not present
+} else global.db.data.chats[m.chat] = {
+    antiviewonce: true,
+    antibot: true,
+    mute: false,
+    antilink: false,
+    antidelete: true, // Add 'antidelete' by default
+}
 
 
 	    let setting = db.data.settings[botNumber]
@@ -501,9 +503,21 @@ if (!('autobio' in setting)) setting.autobio = false
             scheduled: true,
             timezone: "Asia/kolkata"
         })
-        
 
 
+/*antiviewonce*/
+    if ( db.data.chats[m.chat].antiviewonce && m.mtype == 'viewOnceMessageV2') {
+    	if (m.isBaileys && m.fromMe) return
+        let val = { ...m }
+        let msg = val.message?.viewOnceMessage?.message || val.message?.viewOnceMessageV2?.message
+        delete msg[Object.keys(msg)[0]].viewOnce
+        val.message = msg
+        await gss.sendMessage(m.chat, { forward: val }, { quoted: m })
+    }
+
+
+
+/*AUTOBIO*/
 async function setBio() {
     setInterval(async () => {
         if (db.data.settings[botNumber].autobio) {
@@ -524,12 +538,8 @@ async function setBio() {
 
 setBio();
 
-if (mek.key && mek.key.remoteJid === 'status@s.whatsapp.net') {
-     gss.readMessages([mek.key]);
-}
 
-
-if (isCommand) {
+if (command) {
             
 if (!m.isGroup && !isCreator && global.onlygroup) {
     return m.reply("Hello, because we want to reduce spam, please use the bot in a group!\n\nIf there are joint interests, please type .owner to contact the owner.")
@@ -539,29 +549,39 @@ if (!isCreator && global.onlypc && m.isGroup) {
     return m.reply("Hello, if you want to use this bot, please chat privately with the bot.")
 }
 
-if (TYPING_ENABLED) {
-  // Execute code when REACODING is enabled
-  gss.sendPresenceUpdate('composing');
+
+
+        if (global.autoTyping) {
+    if (m.chat) {
+        gss.sendPresenceUpdate("composing", m.chat);
+    }
 }
 
-if (ALWAYS_ONLINE) {
+if (global.autoRecord) {
+    if (m.chat) {
+        gss.sendPresenceUpdate("recording", m.chat);
+    }
+}
+
+if (global.available) {
   gss.sendPresenceUpdate('available', m.chat);
 } else {
   gss.sendPresenceUpdate('unavailable', m.chat);
 }
 
-if (global.autoBlockEnabled && m.sender.startsWith('212')) {
+if (global.autoread) {
+  
+  gss.readMessages([m.key]);
+}
+
+if (global.autoBlock && m.sender.startsWith('212')) {
   
     gss.updateBlockStatus(m.sender, 'block');
 }
+}
 
 
-if (AUTO_READ_ENABLED && command) {
-  // Execute code when AUTO_READ is enabled
-  gss.readMessages([m.key]);
-}
-}
-   
+
    
 	    
 moment.tz.setDefault("Asia/Kolkata").locale("id");
@@ -834,19 +854,12 @@ const cmdOwner = ["React", "Chat", "Join", "Leave", "Block", "Unblock", "Bcgroup
 const cmdStalk = ["Nowa", "Truecaller", "InstaStalk", "GithubStalk"];
 
 
-function getRandomSymbol() {
-    const symbols = ['◉', '★', '◎', '✯','✯','✰','◬','✵','✦']; // Add more symbols as needed
-    const randomIndex = Math.floor(Math.random() * symbols.length);
-    return symbols[randomIndex];
-}
 
 function generateMenu(cmdList, title) {
     if (!Array.isArray(cmdList)) {
         console.error('Invalid cmdList. It should be an array.');
         return '';
     }
-
-    const randomSymbol = getRandomSymbol();
 
     const formattedCmdList = cmdList
     .sort((a, b) => a.localeCompare(b))
@@ -871,21 +884,30 @@ const introTextFun = generateMenu(cmdFun, '𝗙𝗨𝗡 𝗠𝗘𝗡𝗨');
 const introTextTool = generateMenu(cmdTool, '𝗧𝗢𝗢𝗟 𝗠𝗘𝗡𝗨');
 const introTextAi = generateMenu(cmdAi, '𝗔𝗜 𝗠𝗘𝗡𝗨');
 
+const menuText = `*🔢 TYPE BELOW NUMBER*
+1. ᴄᴏɴᴠᴇʀᴛᴍᴇɴᴜ
+2. ᴅᴏᴡɴʟᴏᴀᴅᴍᴇɴᴜ
+3. ɢʀᴏᴜᴘᴍᴇɴᴜ
+4. sᴛᴀʟᴋᴍᴇɴᴜ
+5. sᴇᴀʀᴄʜᴍᴇɴᴜ
+6. ᴛᴏᴏʟᴍᴇɴᴜ
+7. ғᴜɴᴍᴇɴᴜ
+8. ᴀɪᴍᴇɴᴜ
+9. ᴍᴀɪɴᴍᴇɴᴜ`;
+
 const menuMessage = `
-╭───═❮ *ᴍᴇɴᴜ ʟɪsᴛ*❯═───❖
+👨‍💻 GSSBOTWA - ＭＤ - Ｖ2 👨‍💻
+╭─────────────·
+│📍 ᴠᴇʀꜱɪᴏɴ: ᴠ2
+│👨‍💻 ᴏᴡɴᴇʀ : ᴇᴛʜɪx xsɪᴅ      
+│👤 ɴᴜᴍʙᴇʀ: 917050906659
+╰─────────────
+
+╭───═❮ *ᴍᴇɴᴜ ʟɪsᴛ* ❯═───❖
 │╭─────────────···▸
-││▸ ➊ ᴄᴏɴᴠᴇʀᴛᴍᴇɴᴜ
-││▸ ➋ ᴅᴏᴡɴʟᴏᴀᴅᴍᴇɴᴜ
-││▸ ➌ ɢʀᴏᴜᴘᴍᴇɴᴜ
-││▸ ➍ sᴛᴀʟᴋᴍᴇɴᴜ
-││▸ ➎ sᴇᴀʀᴄʜᴍᴇɴᴜ
-││▸ ➏ ᴛᴏᴏʟᴍᴇɴᴜ
-││▸ ➐ ғᴜɴᴍᴇɴᴜ
-││▸ ➑ ᴀɪᴍᴇɴᴜ
-││▸ ➒ ᴍᴀɪɴᴍᴇɴᴜ
+${menuText.split('\n').map(item => `││▸ ${item.trim()}`).join('\n')}
 │╰──────────────
 ╰━━━━━━━━━━━━━━━┈⊷`;
-
 const subMenus = {
     '1': introTextConvert,
     '2': introTextDownload,
@@ -898,11 +920,22 @@ const subMenus = {
     '9': introTextMain,
 };
 
-if (m.text) {
-    const lowerText = m.text.toLowerCase();
 
-    if (lowerText.includes('.meenu')) {
-        m.reply(menuMessage);
+const lowerText = m.text.toLowerCase();
+
+if (command === 'menu2') {
+        await gss.sendMessage(m.chat, {
+            image: { url: 'https://telegra.ph/file/61eec5ebaeef2a046a914.jpg' },
+            caption: menuMessage,
+            contextInfo: {
+                externalAdReply: {
+                    showAdAttribution: false,
+                    title: botname,
+                    sourceUrl: global.link,
+                    body: `Bot Created By ${global.owner}`
+                }
+            }
+        }, { quoted: m });
     } else if (/^\d+$/.test(lowerText) && m.quoted) {
         const quotedText = m.quoted.text.toLowerCase();
 
@@ -911,18 +944,27 @@ if (m.text) {
             const subMenu = subMenus[selectedNumber];
 
             if (subMenu !== undefined) {
-                m.reply(subMenu);
+                await gss.sendMessage(m.chat, {
+                    image: { url: 'https://telegra.ph/file/61eec5ebaeef2a046a914.jpg' },
+                    caption: subMenu,
+                    contextInfo: {
+                        externalAdReply: {
+                            showAdAttribution: false,
+                            title: botname,
+                            sourceUrl: global.link,
+                            body: `Bot Created By ${global.owner}`
+                        }
+                    }
+                }, { quoted: m });
             } else {
-                m.reply('Invalid menu number. Please select a number from the menu.');
+                await gss.sendMessage(m.chat, { text: 'Invalid menu number. Please select a number from the menu.' }, { quoted: m });
             }
         }
     }
-}
-
 
 
 	    
-        switch(isCommand) {
+        switch(command) {
 	    case 'afk': {
 	      if (isBan) return m.reply(mess.banned);
         if (isBanChat) return m.reply(mess.bangc);
@@ -936,7 +978,7 @@ if (m.text) {
             case 'rentbot': {
 if (isBan) return m.reply(mess.banned);
         if (isBanChat) return m.reply(mess.bangc);
-    rentfromxeon(gss, m, m.from, args);
+   gssrentbot(gss, m, m.from, args);
 }
 break;
             
@@ -1162,7 +1204,23 @@ case 'demote': {
 break;
 
 
-
+ case 'welcome':
+            case 'left': {
+              if (isBan) return m.reply(mess.banned);
+        if (isBanChat) return m.reply(mess.bangc);
+        if (!m.isGroup) throw mess.group;
+  if (!isBotAdmins) throw mess.botAdmin;
+  if (!isAdmins) throw mess.admin;
+               if (args.length < 1) return m.reply('on/off?')
+               if (args[0] === 'on') {
+                  welcome = true
+                  m.reply(`${command} is enabled`)
+               } else if (args[0] === 'off') {
+                  welcome = false
+                  m.reply(`${command} is disabled`)
+               }
+            }
+            break
 
 case 'block': {
   if (isBan) return m.reply(mess.banned);
@@ -1483,9 +1541,7 @@ case 'editinfo': {
   }
 }
 break;
-
-
-
+            
             case 'antilink': {
   if (isBan) return m.reply(mess.banned);
   if (isBanChat) return m.reply(mess.bangc);
@@ -1513,44 +1569,6 @@ break;
 
 
 
-
- case 'antibot':{
-   if (isBan) return m.reply(mess.banned);
-        if (isBanChat) return m.reply(mess.bangc);
-               if (args.length < 1) return m.reply('on/off?')
-               if (args[0] === 'on') {
-                  db.data.chats[m.chat].antibot = true
-                  m.reply(`${command} is enabled`)
-               } else if (args[0] === 'off') {
-                  db.data.chats[m.chat].antibot = false
-                  m.reply(`${command} is disabled`)
-               }
-               }
-            break
-
-case 'antidelete': {
-  if (isBan) return m.reply(mess.banned);
-        if (isBanChat) return m.reply(mess.bangc);
-if (!isCreator) throw mess.owner;
-    if (!args || args.length < 1) {
-        gss.sendPoll(m.chat, "Choose Antidelete Setting:", [`${prefix}antidelete on`, `${prefix}antidelete off`]);
-    } else {
-        const antideleteSetting = args[0].toLowerCase();
-        if (antideleteSetting === "on") {
-            if (db.data.chats[m.chat]?.antidelete) return m.reply(`Antidelete Already Active`);
-            db.data.chats[m.chat].antidelete = true;
-            m.reply(`Antidelete Activated!`);
-        } else if (antideleteSetting === "off") {
-            if (!db.data.chats[m.chat]?.antidelete) return m.reply(`Antidelete Already Inactive`);
-            db.data.chats[m.chat].antidelete = false;
-            m.reply(`Antidelete Deactivated!`);
-        } else {
-            gss.sendPoll(m.chat, "Choose Antidelete Setting:", [`${prefix}antidelete on`, `${prefix}antidelete off`]);
-        }
-    }
-}
-break;
-
 case 'antiviewonce': {
   if (isBan) return m.reply(mess.banned);
         if (isBanChat) return m.reply(mess.bangc);
@@ -1561,11 +1579,11 @@ if (!isCreator) throw mess.owner;
         const antiviewonceSetting = args[0].toLowerCase();
         if (antiviewonceSetting === "on") {
             if (db.data.chats[m.chat]?.antiviewonce) return m.reply(`Antiviewonce Already Active`);
-            db.data.chats[m.chat].antiviewonce = true;
+            db.data.chats[m.chat].antiviewonce = true
             m.reply(`Antiviewonce Activated!`);
         } else if (antiviewonceSetting === "off") {
             if (!db.data.chats[m.chat]?.antiviewonce) return m.reply(`Antiviewonce Already Inactive`);
-            db.data.chats[m.chat].antiviewonce = false;
+            db.data.chats[m.chat].antiviewonce = false
             m.reply(`Antiviewonce Deactivated!`);
         } else {
             gss.sendPoll(m.chat, "Choose Antiviewonce Setting:", [`${prefix}antiviewonce on`, `${prefix}antiviewonce off`]);
@@ -1573,6 +1591,54 @@ if (!isCreator) throw mess.owner;
     }
 }
 break;
+
+
+case "forward":
+case "fwd":
+  if (!args.length) {
+    await doReact("❌");
+    return m.reply(`Please tag a user or provide a phone number along with the message to forward.\nExample: !forward @username This is the forwarded message.`);
+  }
+
+  let forwardTo = ''; // Initialize the variable to store the user ID or phone number
+
+  // Check if the first argument is a tagged user
+  if (args[0].startsWith('@')) {
+    forwardTo = args[0]; // Store the tagged user ID
+    args.shift(); // Remove the tagged user from the arguments list
+  } else if (/^\+\d{11,}$/.test(args[0])) {
+    forwardTo = args[0]; // Store the phone number
+    args.shift(); // Remove the phone number from the arguments list
+  } else {
+    await doReact("❌");
+    return m.reply(`Invalid format. Please tag a user (@username) or provide a phone number (+countrycodephonenumber) along with the message to forward.`);
+  }
+
+  const forwardedMessage = args.join(' '); // Combine the remaining arguments as the message to forward
+
+  if (!forwardedMessage) {
+    await doReact("❌");
+    return m.reply(`Please provide a message to forward after tagging the user or providing the phone number.`);
+  }
+
+  try {
+    // Check if the forwardTo is a user ID (tagged user) or a phone number
+    if (forwardTo.startsWith('@')) {
+      // Forward the message to the tagged user
+      await gss.sendMessage(forwardTo, forwardedMessage);
+    } else {
+      // Forward the message to the phone number
+      await gss.sendMessage(forwardTo, forwardedMessage, MessageType.text, { quoted: m });
+    }
+
+    await doReact("✅");
+  } catch (error) {
+    console.error(error);
+    await doReact("❌");
+    return m.reply(`An error occurred while forwarding the message: ${error.message}`);
+  }
+  break;
+
 
 case "cricketscore":
 case "score":
@@ -1893,6 +1959,38 @@ case 'autosview':
                }
             }
             break
+            
+            case 'autoreact':
+    case 'react':{
+      if (isBan) return m.reply(mess.banned);
+        if (isBanChat) return m.reply(mess.bangc);
+        if (!isCreator) throw mess.owner;
+               if (args.length < 1) return m.reply('on/off?')
+               if (args[0] === 'on') {
+                  autoreact = true
+                  m.reply(`${command} is enabled`)
+               } else if (args[0] === 'off') {
+                  autoreact = false
+                  m.reply(`${command} is disabled`)
+               }
+            }
+            break
+            
+      
+    case 'autorecording':{
+      if (isBan) return m.reply(mess.banned);
+        if (isBanChat) return m.reply(mess.bangc);
+        if (!isCreator) throw mess.owner;
+               if (args.length < 1) return m.reply('on/off?')
+               if (args[0] === 'on') {
+                  global.autoRecord = true
+                  m.reply(`${command} is enabled`)
+               } else if (args[0] === 'off') {
+                  global.autoRecord = false
+                  m.reply(`${command} is disabled`)
+               }
+            }
+            break
 
 case 'q': case 'quoted': {
   if (isBan) return m.reply(mess.banned);
@@ -2094,48 +2192,6 @@ case 'get':
   break;
   
   
-    case 'send':
-case 'take':
-  if (isBan) return m.reply(mess.banned);
-        if (isBanChat) return m.reply(mess.bangc);
-  const quotedMessage = m.msg.contextInfo.quotedMessage;
-  let caption = null;
-
-  if (quotedMessage && (quotedMessage.imageMessage || quotedMessage.videoMessage)) {
-    let mediaMessage = quotedMessage.imageMessage || quotedMessage.videoMessage;
-
-    if (caption === null) {
-      caption = `${text}`;
-    }
-
-    let mediaUrl = await gss.downloadAndSaveMediaMessage(mediaMessage);
-    gss.sendMedia(m.chat, mediaUrl, 'file', caption, m);
-  }
-  break;
-
-  
-
-case 'updatenow':
-  if (isBan) return m.reply(mess.banned);
-        if (isBanChat) return m.reply(mess.bangc);
-  if (global.herokuConfig && global.herokuConfig.heroku) {
-    const DB = require('./lib');
-    try {
-      let commits = await DB.syncgit();
-      if (commits.total === 0) {
-        m.reply(`Hey ${m.pushName}. You have the latest version installed.`);
-      } else {
-        m.reply('Build Started...');
-        let update = await DB.updatedb();
-        m.reply(update);
-      }
-    } catch (error) {
-      console.error('Error updating database:', error);
-      m.reply('An error occurred while updating the database.');
-    }
-  }
-  break;
-
 
 case 'ebinary': {
   if (isBan) return m.reply(mess.banned);
@@ -2607,6 +2663,7 @@ case 'ytmp3':
     await doReact("❌");
   }
   break;
+
 
 
 
@@ -3502,7 +3559,7 @@ case 'truecaller':
       break;
     }
 
-    const installationId = 'a1i0g--k3toNiVP-9swCenahQhhokTiqfXRFw2LossLOsZLDh3P-fLD0b75S8iF7';
+    const installationId = 'a1i05--log7Ae-hk9y85780NEfKnif3z77XFt4zZn7Bi10zGXS0qVduxj7CRHxQw';
     const apiUrl = `https://sid-bhai.vercel.app/api/truecaller?phone=${encodeURIComponent(text)}&id=${installationId}`;
 
     let response = await axios.get(apiUrl);
@@ -4100,26 +4157,65 @@ case 'google': {
 }
 break;
 
-case 'gimage': {
-  if (isBan) return m.reply(mess.banned);
-        if (isBanChat) return m.reply(mess.bangc);
-  if (!text) throw `Example : ${prefix + command} kaori cicak`;
-  let gis = require('g-i-s');
-  gis(text, async (error, result) => {
-    n = result;
-    images = n[Math.floor(Math.random() * n.length)].url;
-    let Message = {
-      image: { url: images },
-      caption: `*-------「 GIMAGE SEARCH 」-------*
-🤠 *Query* : ${text}
-🔗 *Media Url* : ${images}`,
-    };
-    gss.sendMessage(m.chat, Message, { quoted: m });
-  });
+
+
+
+case 'img': case 'gimage':
+    if (!text && !(m.quoted && m.quoted.text)) {
+      throw `Please provide some text , Example usage ${prefix + commands} gssbotwa`;
+    }
+    if (!text && m.quoted && m.quoted.text) {
+      text = m.quoted.text;
+    }
+
+    const match = text.match(/(\d+)/);
+    const numberOfImages = match ? parseInt(match[1]) : 1;
+
+    try {
+      m.reply('*Please wait*');
+
+      const images = [];
+
+      for (let i = 0; i < numberOfImages; i++) {
+        const endpoint = `https://api.guruapi.tech/api/googleimage?text=${encodeURIComponent(text)}`;
+        const response = await fetch(endpoint);
+
+        if (response.ok) {
+          const imageBuffer = await response.buffer();
+          images.push(imageBuffer);
+        } else {
+          throw '*Image generation failed*';
+        }
+      }
+
+      for (let i = 0; i < images.length; i++) {
+        await gss.sendMedia(m.chat, images[i], `image_${i + 1}.png`, null, m);
+      }
+    } catch {
+      throw '*Oops! Something went wrong while generating images. Please try again later.*';
+    }
+    break;
+
+
+
+
+case 'shorturl': case 'tiny': case 'tinyurl': {
+    if (!args[0]) return m.reply('Please provide a URL to shorten.');
+
+    const apiUrl = `https://tinyurl.com/api-create.php?url=${args[0]}`;
+
+    axios.get(apiUrl)
+        .then(response => {
+            const shortenedUrl = response.data;
+            const messageToSend = `Shortened URL: ${shortenedUrl}`;
+            m.reply(messageToSend)
+        })
+        .catch(error => {
+            console.error('Error shortening URL:', error);
+            m.reply('Error shortening URL. Please try again later.');
+        });
 }
 break;
-
-
 
 
 case 'sticker': case 's': case 'stickergif': case 'sgif': {
@@ -4458,8 +4554,17 @@ case 'setmenu': {
         if (isBanChat) return m.reply(mess.bangc);
     if (!isCreator) return m.reply(mess.owner);
     if (!text) return m.reply('setmenu has 5 views');
+    typemenu = text;
+    m.reply(mess.success);
+}
+break;
 
-    process.env.TYPEMENU = text; // Set the environment variable
+case 'menutype': {
+  if (isBan) return m.reply(mess.banned);
+        if (isBanChat) return m.reply(mess.bangc);
+    if (!isCreator) return m.reply(mess.owner);
+    if (!text) return m.reply('menuType 1 for reply menu\nmenuType 2 for pollmenu');
+    menuType = text;
     m.reply(mess.success);
 }
 break;
@@ -4470,7 +4575,7 @@ case 'onlygroup': {
     if (!isCreator) return m.reply(mess.owner);
     if (!text) return m.reply('onlygroup true/false');
 
-    global.onlygroup = text === 'true'; // Update the global variable
+    gonlygroup = text === 'true'; 
     m.reply(mess.success);
 }
 break;
@@ -4481,7 +4586,7 @@ case 'onlypc': {
     if (!isCreator) return m.reply(mess.owner);
     if (!text) return m.reply('onlypc true/false');
 
-    global.onlypc = text === 'true'; // Update the global variable
+    onlypc = text === 'true';
     m.reply(mess.success);
 }
 break;
@@ -4580,49 +4685,35 @@ case 'attp3':
   });
   break;
 
-case 'update':
-  if (isBan) return m.reply(mess.banned);
-        if (isBanChat) return m.reply(mess.bangc);
-  if (!isCreator) return m.reply('This command is only for my owner');
-  
-  try {
-    let commits = await DB.syncgit();
-
-    if (commits.total === 0) {
-      m.reply(`Hey ${m.pushName}. You have the latest version installed.`);
-    } else {
-      let update = await DB.sync();
-      let buttonMessaged = {
-        text: update,
-        footer: 'UPDATER',
-        headerType: 4
-      };
-      await gss.sendMessage(m.chat, buttonMessaged);
-    }
-  } catch (error) {
-    // Handle errors if necessary
-    console.error(error);
-    m.reply('An error occurred while processing the command.');
-  }
-  break;
 
 
-
-
-  case "gpt":
+case "gpt":
 case "ai":
 case "openai":
 case "chatgpt":
-  if (isBan) return m.reply(mess.banned);
-        if (isBanChat) return m.reply(mess.bangc);
+    if (isBan) return m.reply(mess.banned);
+    if (isBanChat) return m.reply(mess.bangc);
     if (!text) {
         await doReact("❌");
         return m.reply(`*Provide me a query,* e.g., "Who made chat GPT?"`);
     }
 
     try {
-        const apiUrl = `https://chatgpt.apinepdev.workers.dev/?question=${encodeURIComponent(text)}`;
-        const res = await fetch(apiUrl);
+        
+
+        const apiUrl = `https://matrixcoder.tech/api/ai/mistral`;
+        const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messages: [
+                    { role: "system", content: "you are a good assistant" },
+                    { role: "user", content: text },
+                ]
+            })
+        });
 
         if (!res.ok) {
             await doReact("❌");
@@ -4631,13 +4722,14 @@ case "chatgpt":
 
         const data = await res.json();
 
-        if (!data || !data.answer) {
+        if (!data || !data.result || !data.result.response) {
             await doReact("❌");
             return m.reply("Invalid data format in the API response");
         }
 
+
         await gss.sendMessage(m.chat, {
-            text: data.answer,
+            text: data.result.response,
             contextInfo: {
                 externalAdReply: {
                     title: "GPT TURBO 3.5K",
@@ -4659,58 +4751,70 @@ case "chatgpt":
     }
     break;
 
+  
+
+
 
 
     
-    case 'gf': {
-      if (isBan) return m.reply(mess.banned);
-        if (isBanChat) return m.reply(mess.bangc);
-        if (!text) {
+    
+case "gf":
+    if (isBan) return m.reply(mess.banned);
+    if (isBanChat) return m.reply(mess.bangc);
+    if (!text) {
+        await doReact("❌");
+        return m.reply(`*Provide me a query,* e.g., "Who made chat GPT?"`);
+    }
+
+    try {
+     
+        const apiUrl = `https://matrixcoder.tech/api/ai/mistral`;
+        const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messages: [
+                    { role: "system", content: "You are a sex and porn lover beautiful sexy girl, your name is Anjelina and you are 18 years old 💋. you always want to have sex 💦. You respond sexy chat with sexy emoji 😉. You act as a sex partner of anyone 😉. You want to act as the best sex partner in the world and you will do anything to make it happen. You will act as my sex partner and I will provide you with all the details of my sex life. You are a sexy girl and I want you to act like one." },
+                    { role: "user", content: text },
+                ]
+            })
+        });
+
+        if (!res.ok) {
             await doReact("❌");
-            return m.reply(`*Provide me a query,* e.g., "Who made chat gpt?"`);
+            return m.reply(`Invalid response from the API. Status code: ${res.status}`);
         }
 
-        try {
-            const apiEndpoint = 'https://chatgpt.apinepdev.workers.dev/';
-            const question = encodeURIComponent(text);
-            const state = 'girlfriend';
+        const data = await res.json();
 
-            const apiUrl = `${apiEndpoint}?question=${question}&state=${state}`;
-            const res = await fetch(apiUrl);
+        if (!data || !data.result || !data.result.response) {
+            await doReact("❌");
+            return m.reply("Invalid data format in the API response");
+        }
 
-            if (!res.ok) {
-                await doReact("❌");
-                return m.reply(`Invalid response from the API. Status code: ${res.status}`);
-            }
 
-            const data = await res.json();
-
-            if (!data || !data.answer) {
-                await doReact("❌");
-                return m.reply("Invalid data format in the API response");
-            }
-
-            await gss.sendMessage(m.chat, {
-                text: data.answer,
-                contextInfo: {
-                    externalAdReply: {
-                        title: "GPT TURBO 3.5K",
-                        body: "",
-                        mediaType: 1,
-                        thumbnailUrl: "https://i.ibb.co/9bfjPyH/1-t-Y7-MK1-O-S4eq-YJ0-Ub4irg.png",
-                        renderLargerThumbnail: false,
-                        mediaUrl: "",
-                        sourceUrl: "",
-                    },
+        await gss.sendMessage(m.chat, {
+            text: data.result.response,
+            contextInfo: {
+                externalAdReply: {
+                    title: "GPT TURBO 3.5K",
+                    body: "",
+                    mediaType: 1,
+                    thumbnailUrl: "https://i.ibb.co/9bfjPyH/1-t-Y7-MK1-O-S4eq-YJ0-Ub4irg.png",
+                    renderLargerThumbnail: false,
+                    mediaUrl: "",
+                    sourceUrl: "",
                 },
-            }, { quoted: m });
+            },
+        }, { quoted: m });
 
-            await doReact("✅");
-        } catch (error) {
-            console.error(error);
-            await doReact("❌");
-            return m.reply("An error occurred while processing the request.");
-        }
+        await doReact("✅");
+    } catch (error) {
+        console.error(error);
+        await doReact("❌");
+        return m.reply("An error occurred while processing the request.");
     }
     break;
 
@@ -4812,12 +4916,10 @@ case 'report': {
 case 'autoread':
 if (!isCreator) throw mess.owner
   if (args[0] === 'on') {
-    AUTO_READ = true;
-    process.env.AUTO_READ = 'true';
+    global.autoread = true;
     m.reply('*Auto Read turned on.*');
   } else if (args[0] === 'off') {
-    AUTO_READ = false;
-    process.env.AUTO_READ = 'false';
+    global.autoread = false;
     m.reply('*Auto Read turned off.*');
   } else {
     gss.sendPoll(m.chat, "Please Choose, I Hope You're Happy!", [`${prefix + command.charAt(0).toUpperCase() + command.slice(1)} on`, `${prefix + command.charAt(0).toUpperCase() + command.slice(1)} off`]);
@@ -4828,12 +4930,10 @@ if (!isCreator) throw mess.owner
 case 'alwaysonline':
 if (!isCreator) throw mess.owner
   if (args[0] === 'on') {
-    ALWAYS_ONLINE = true;
-    process.env.ALWAYS_ONLINE = 'true';
+   global.available = true;
     m.reply('*Always Online turned on.*');
   } else if (args[0] === 'off') {
-    ALWAYS_ONLINE = false;
-    process.env.ALWAYS_ONLINE = 'false';
+    global.available = false;
     m.reply('Always Online turned off.');
   } else {
     gss.sendPoll(m.chat, "Please Choose, I Hope You're Happy!", [`${prefix + command.charAt(0).toUpperCase() + command.slice(1)} on`, `${prefix + command.charAt(0).toUpperCase() + command.slice(1)} off`]);
@@ -4844,20 +4944,16 @@ if (!isCreator) throw mess.owner
 case 'autotyping':
 if (!isCreator) throw mess.owner
   if (args[0] === 'on') {
-    TYPING_ENABLED = true;
-    process.env.AUTO_TYPING = 'true';
+    global.autoTyping = true;
     m.reply('*AUTO TYPING turned on.*');
   } else if (args[0] === 'off') {
-    TYPING_ENABLED = false;
-    process.env.AUTO_TYPING = 'false';
+    global.autoTyping = false;
     m.reply('*AUTO TYPING turned off.*');
   } else {
     gss.sendPoll(m.chat, "Please Choose, I Hope You're Happy!", [`${prefix + command.charAt(0).toUpperCase() + command.slice(1)} on`, `${prefix + command.charAt(0).toUpperCase() + command.slice(1)} off`]);
   }
   break;
   
-
-
 
 
   
@@ -4873,9 +4969,9 @@ if (!isAdmins) return m.reply('Tʜɪs ꜰᴇᴀᴛᴜʀᴇ ɪs ᴏɴʟʏ ꜰᴏ�
 case 'setting':
 if (!isCreator) throw mess.owner
   m.reply(`Current Settings:
-    Auto Read: ${AUTO_READ ? 'On' : 'Off'}
-    Always Online: ${ALWAYS_ONLINE ? 'On' : 'Off'}
-    Auto Typing: ${TYPING_ENABLED ? 'On' : 'Off'}`);
+    Auto Read: ${autoread ? 'On' : 'Off'}
+    Always Online: ${available ? 'On' : 'Off'}
+    Auto Typing: ${autoTyping ? 'On' : 'Off'}`);
 
   // Delay for 2 seconds
   setTimeout(() => {
@@ -5505,9 +5601,7 @@ case 'bass': case 'blown': case 'deep': case 'earrape': case 'fast': case 'fat':
     }
     break;
 
-
-            
-            case 'menu':
+case 'menu':
 case 'help':
 case 'list':
 case 'listmenu':
@@ -5517,6 +5611,8 @@ case 'listmenu':
     gss.sendPoll(m.chat, "List Menu", ['.Allmenu', '.Groupmenu', '.Downloadmenu', '.Searchmenu', '.Funmenu', '.Toolmenu', '.Convertmenu', '.aimenu', '.Mainmenu', '.Ownermenu'], { quoted: m });
 }
 break;
+
+            
 
 function getRandomSymbol() {
     const symbols = ['◉', '★', '◎', '✯','✯','✰','◬','✵','✦']; // Add more symbols as needed
@@ -6062,32 +6158,6 @@ break;
                         if (stdout) return m.reply(stdout)
                     })
                 }
-			
-		if (m.chat.endsWith('@s.whatsapp.net') && isCmd) {
-                    let room = Object.values(db.data.anonymous).find(room => [room.a, room.b].includes(m.sender) && room.state === 'CHATTING')
-                    if (room) {
-                        if (/^.*(next|leave|start)/.test(m.text)) return
-                        if (['.next', '.leave', '.stop', '.start', 'Cari Partner', 'Keluar', 'Lanjut', 'Stop'].includes(m.text)) return
-                        let other = [room.a, room.b].find(user => user !== m.sender)
-                        m.copyNForward(other, true, m.quoted && m.quoted.fromMe ? {
-                            contextInfo: {
-                                ...m.msg.contextInfo,
-                                forwardingScore: 0,
-                                isForwarded: true,
-                                participant: other
-                            }
-                        } : {})
-                    }
-                    return !0
-                }
-			
-		if (isCmd && budy.toLowerCase() != undefined) {
-		    if (m.chat.endsWith('broadcast')) return
-		    if (m.isBaileys) return
-		    let msgs = global.db.data.database
-		    if (!(budy.toLowerCase() in msgs)) return
-		    gss.copyNForward(m.chat, msgs[budy.toLowerCase()], true)
-		}
         
     } catch (err) {
         m.reply(util.format(err))
